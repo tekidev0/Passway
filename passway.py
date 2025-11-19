@@ -4,21 +4,21 @@ import argparse
 import random
 import string
 import sys
+import os # Imported for potential file path operations
 
 def generate_password(length, chars):
     """Generates a single password of the specified length."""
     return ''.join(random.choice(chars) for _ in range(length))
 
 def main():
-    """Parses command-line arguments and generates passwords."""
+    """Parses command-line arguments and generates/saves passwords."""
     parser = argparse.ArgumentParser(
         description="Passway: A custom password generator.",
-        formatter_class=argparse.RawTextHelpFormatter # Keeps formatting for help text
+        formatter_class=argparse.RawTextHelpFormatter
     )
 
     # --- REQUIRED ARGUMENTS ---
 
-    # -c (characters, length)
     parser.add_argument(
         '-c',
         type=int,
@@ -29,7 +29,6 @@ def main():
 
     # --- OPTIONAL ARGUMENTS ---
 
-    # -C (copies, count)
     parser.add_argument(
         '-C',
         type=int,
@@ -38,9 +37,18 @@ def main():
         help='Number of passwords to generate (default: 1). Max: 200.'
     )
 
-    # --- CHARACTER SET FLAGS ---
+    # NEW ARGUMENT: -s for saving to a file
+    parser.add_argument(
+        '-s',
+        type=str,
+        default=None,
+        dest='output_file',
+        help='Saves the generated passwords to the specified file (e.g., passwords.txt).'
+    )
 
-    # This group requires at least one character set to be specified
+
+    # --- CHARACTER SET FLAGS (Must specify at least one) ---
+
     char_group = parser.add_argument_group('Character Sets (Must specify at least one)')
 
     char_group.add_argument(
@@ -71,18 +79,15 @@ def main():
 
     # --- VALIDATION ---
 
-    # 1. Validate Password Count (-C)
     if args.count > 200:
         print("Error: Maximum password count (-C) is 200.")
         sys.exit(1)
 
-    # 2. Validate Character Set Selection
     if not (args.n or args.U or args.L or args.S):
         print("Error: You must specify at least one character set (-n, -U, -L, or -S).")
         parser.print_help()
         sys.exit(1)
 
-    # 3. Validate Password Length
     if args.length < 1:
         print("Error: Password length (-c) must be at least 1.")
         sys.exit(1)
@@ -91,24 +96,43 @@ def main():
 
     allowed_chars = ''
     if args.n:
-        allowed_chars += string.digits # 0123456789
+        allowed_chars += string.digits
     if args.U:
-        allowed_chars += string.ascii_uppercase # ABC...XYZ
+        allowed_chars += string.ascii_uppercase
     if args.L:
-        allowed_chars += string.ascii_lowercase # abc...xyz
+        allowed_chars += string.ascii_lowercase
     if args.S:
-        # A common set of strong special characters
         allowed_chars += '!@#$%^&*()_+-=[]{}|;:,.<>?'
 
-    # --- GENERATE AND PRINT ---
+    # --- GENERATE PASSWORDS ---
 
-    print(f"\n🔑 Generating {args.count} password(s) with length {args.length}...")
+    passwords = []
+    for _ in range(args.count):
+        passwords.append(generate_password(args.length, allowed_chars))
 
-    for i in range(args.count):
-        password = generate_password(args.length, allowed_chars)
-        print(f"[{i + 1:02d}] {password}")
+    # --- OUTPUT RESULTS ---
 
-    print("\nGeneration complete.")
+    if args.output_file:
+        # Save to file using 'w' mode (write, which overwrites file contents)
+        try:
+            with open(args.output_file, 'w') as f:
+                for idx, password in enumerate(passwords):
+                    f.write(f"[{idx + 1:02d}] {password}\n")
+
+            # Print a confirmation message to the terminal
+            print(f"\n✅ Successfully generated {args.count} password(s) and saved to: {args.output_file}")
+
+        except IOError as e:
+            # Handle potential file writing errors
+            print(f"\n❌ Error saving file to {args.output_file}: {e}")
+            sys.exit(1)
+
+    else:
+        # Print to terminal (default behavior)
+        print(f"\n🔑 Generating {args.count} password(s) with length {args.length}...")
+        for idx, password in enumerate(passwords):
+            print(f"[{idx + 1:02d}] {password}")
+        print("\nGeneration complete.")
 
 if __name__ == "__main__":
     main()
